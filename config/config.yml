@@ -1,0 +1,16 @@
+app:
+  name: 'without-logo'
+  version: '1.0.0'
+
+http:
+  port: '8081'
+
+logger:
+  log_level: 'debug'
+  rollbar_env: 'without-logo'
+
+postgres:
+  pool_max: 2
+
+jwt:
+  eat: 604800
