@@ -27,7 +27,7 @@ type (
 
 	// HTTP -.
 	HTTP struct {
-		Port string `yaml:"port" env:"HTTP_PORT"`
+		Port string `yaml:"port" env:"PORT"`
 	}
 
 	// Log -.
