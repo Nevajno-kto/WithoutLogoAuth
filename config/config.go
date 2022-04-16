@@ -38,7 +38,7 @@ type (
 	// PG -.
 	PG struct {
 		PoolMax int    `yaml:"pool_max" env:"PG_POOL_MAX"`
-		URL     string `yaml:"pg_url" env:"PG_URL"`
+		URL     string `yaml:"pg_url" env:"DATABASE_URL"`
 	}
 
 	// JWT -.
