@@ -42,7 +42,7 @@ type DebugInfo struct {
 func NewAuth(authRepo *psql.AuthRepo, clientsRepo *psql.UsersRepo) *AuthUseCase {
 	//******************************** DEBUG ************************************
 	DebugFileSignUp, _ = os.OpenFile("./signUpcode.txt", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
-	DebugFileSignIn, _ = os.OpenFile("./signUpcode.txt", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	DebugFileSignIn, _ = os.OpenFile("./signIncode.txt", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	//******************************** DEBUG ************************************
 
 	rand.Seed(time.Now().Unix())
