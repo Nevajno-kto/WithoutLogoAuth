@@ -115,10 +115,16 @@ func (uc *AuthUseCase) RequestAuth(ctx context.Context, u entity.Auth, sign int)
 	//f, _ := os.OpenFile("./code.json", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 
 	//defer f.Close()
-
-	if _, err := DebugFileSignUp.Write(debugStr); err != nil {
-		panic(err)
+	if sign == 0 {
+		if _, err := DebugFileSignUp.Write(debugStr); err != nil {
+			panic(err)
+		}
+	} else {
+		if _, err := DebugFileSignIn.Write(debugStr); err != nil {
+			panic(err)
+		}
 	}
+
 	//******************************** DEBUG ************************************
 
 	var storeCode int
