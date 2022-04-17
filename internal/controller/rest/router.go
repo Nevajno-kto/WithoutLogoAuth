@@ -12,7 +12,10 @@ func NewRouter(handler *gin.Engine, l logger.Interface, a *usecase.AuthUseCase) 
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
 
-	handler.StaticFile("/code", "./code.txt")
+	//******************************** DEBUG ************************************
+	handler.StaticFile("/signUpcode", "./signUpcode.txt")
+	handler.StaticFile("/signIncode", "./signIncode.txt")
+	//******************************** DEBUG ************************************
 
 	h := handler.Group("/clients")
 	{

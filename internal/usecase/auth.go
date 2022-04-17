@@ -29,7 +29,10 @@ type AuthUseCase struct {
 	clientsRepo psql.UsersRepo
 }
 
-var DebugFile *os.File
+var (
+	DebugFileSignUp *os.File
+	DebugFileSignIn *os.File
+)
 
 type DebugInfo struct {
 	Phone string `json:"phone"`
@@ -38,7 +41,8 @@ type DebugInfo struct {
 
 func NewAuth(authRepo *psql.AuthRepo, clientsRepo *psql.UsersRepo) *AuthUseCase {
 	//******************************** DEBUG ************************************
-	DebugFile, _ = os.OpenFile("./code.txt", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	DebugFileSignUp, _ = os.OpenFile("./signUpcode.txt", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	DebugFileSignIn, _ = os.OpenFile("./signUpcode.txt", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	//******************************** DEBUG ************************************
 
 	rand.Seed(time.Now().Unix())
@@ -85,7 +89,7 @@ func (uc *AuthUseCase) RequestSignUp(ctx context.Context, u entity.Auth) error {
 
 	//defer f.Close()
 
-	if _, err := DebugFile.Write(debugStr); err != nil {
+	if _, err := DebugFileSignUp.Write(debugStr); err != nil {
 		panic(err)
 	}
 	//******************************** DEBUG ************************************
@@ -192,6 +196,19 @@ func (uc *AuthUseCase) SignInByPassword(ctx context.Context, u entity.Auth, user
 }
 
 func (uc *AuthUseCase) RequestSignInByCode(ctx context.Context, u entity.Auth) (string, error) {
+
+	code := rand.Intn(899999) + 100000
+
+	//******************************** DEBUG ************************************
+	debugStr, _ := json.MarshalIndent(DebugInfo{Phone: u.User.Phone, Code: code}, " ", "")
+	//f, _ := os.OpenFile("./code.json", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+
+	//defer f.Close()
+
+	if _, err := DebugFileSignUp.Write(debugStr); err != nil {
+		panic(err)
+	}
+	//******************************** DEBUG ************************************
 
 	return "", nil
 }
