@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -28,7 +29,19 @@ type AuthUseCase struct {
 	clientsRepo psql.UsersRepo
 }
 
+var DebugFile *os.File
+
+type DebugInfo struct {
+	Phone string `json:"phone"`
+	Code  int    `json:"code"`
+}
+
 func NewAuth(authRepo *psql.AuthRepo, clientsRepo *psql.UsersRepo) *AuthUseCase {
+	//******************************** DEBUG ************************************
+	DebugFile, _ = os.OpenFile("./code.txt", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	//******************************** DEBUG ************************************
+
+	rand.Seed(time.Now().Unix())
 	return &AuthUseCase{authRepo: *authRepo, clientsRepo: *clientsRepo}
 }
 
@@ -57,19 +70,28 @@ func (uc *AuthUseCase) SignUp(ctx context.Context, u entity.Auth) error {
 
 func (uc *AuthUseCase) RequestSignUp(ctx context.Context, u entity.Auth) error {
 
-	//TODO: init seed rand
 	code := rand.Intn(899999) + 100000
 	//_, err := sms.Send(u.User.Phone, fmt.Sprint(code))
-	f, err := os.Create("code.txt")
+	//
 
-	if err != nil {
-		return fmt.Errorf("usecase - auth - SignUp - RequestSignUp - Send: %w", err)
+	// if err != nil {
+	// 	return fmt.Errorf("usecase - auth - SignUp - RequestSignUp - Send: %w", err)
+	// }
+	// defer f.Close()
+
+	//******************************** DEBUG ************************************
+	debugStr, _ := json.MarshalIndent(DebugInfo{Phone: u.User.Phone, Code: code}, " ", "")
+	//f, _ := os.OpenFile("./code.json", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+
+	//defer f.Close()
+
+	if _, err := DebugFile.Write(debugStr); err != nil {
+		panic(err)
 	}
-	defer f.Close()
-
-	f.WriteString(fmt.Sprint(code))
+	//******************************** DEBUG ************************************
 
 	var storeCode int
+	var err error
 
 	if storeCode, _, err = uc.authRepo.GetSignUpCode(ctx, u.User); err == nil {
 		if storeCode == 0 {
