@@ -17,35 +17,35 @@ func NewAuthRepo(pg *postgres.Postgres) *AuthRepo {
 	return &AuthRepo{pg}
 }
 
-func (r *AuthRepo) InsertSignUpCode(ctx context.Context, c entity.User, code int) error {
+func (r *AuthRepo) InsertAuthCode(ctx context.Context, c entity.User, sign int, code int) error {
 
 	sqlStatement := `
-	INSERT INTO requestsignup
-	VALUES ( DEFAULT, $1, $2, $3, $4 )
+	INSERT INTO auth
+	VALUES ( DEFAULT, $1, $2, $3, $4, $5 )
 	`
 
 	_, err := r.Pool.Exec(ctx,
 		sqlStatement,
-		c.Phone, c.Organization, code, time.Now().Unix())
+		c.Phone, c.Organization, code, time.Now().Unix(), sign)
 
 	if err != nil {
-		return fmt.Errorf("psql - auth - InsertSignUpCode - r.Pool.Exec: %w", err)
+		return fmt.Errorf("psql - auth - InsertAuthCode - r.Pool.Exec: %w", err)
 	}
 
 	return nil
 }
 
-func (r *AuthRepo) GetSignUpCode(ctx context.Context, c entity.User) (int, int64, error) {
+func (r *AuthRepo) GetAuthCode(ctx context.Context, c entity.User, sign int) (int, int64, error) {
 
 	sqlStatement := `
 	SELECT code, request_time
-	FROM requestsignup 
-	WHERE phone = $1 AND organization = $2`
+	FROM auth 
+	WHERE typeofsign = $1 AND phone = $2 AND organization = $3`
 
-	rows, err := r.Pool.Query(ctx, sqlStatement, c.Phone, c.Organization)
+	rows, err := r.Pool.Query(ctx, sqlStatement, sign, c.Phone, c.Organization)
 
 	if err != nil {
-		return 0, 0, fmt.Errorf("psql - auth - GetSignUpCode - r.Pool.Query: %w", err)
+		return 0, 0, fmt.Errorf("psql - auth - GetAuthCode - r.Pool.Query: %w", err)
 	}
 	defer rows.Close()
 
@@ -55,43 +55,43 @@ func (r *AuthRepo) GetSignUpCode(ctx context.Context, c entity.User) (int, int64
 	for rows.Next() {
 		err = rows.Scan(&code, &request_time)
 		if err != nil {
-			return code, request_time, fmt.Errorf("psql - auth - GetSignUpCode - rows.Scan: %w", err)
+			return code, request_time, fmt.Errorf("psql - auth - GetAuthCode - rows.Scan: %w", err)
 		}
 	}
 
 	return code, request_time, nil
 }
 
-func (r *AuthRepo) UpdateSignUpCode(ctx context.Context, c entity.User, code int) error {
+func (r *AuthRepo) UpdateAuthCode(ctx context.Context, c entity.User, sign int, code int) error {
 
 	sqlStatement := `
-	UPDATE requestsignup
+	UPDATE auth
 	SET phone = $1, organization = $2, code = $3, request_time = $4
-	WHERE phone = $1 AND organization = $2`
+	WHERE typeofsign = $5 AND phone = $1 AND organization = $2`
 
 	_, err := r.Pool.Exec(ctx,
 		sqlStatement,
-		c.Phone, c.Organization, code, time.Now().Unix())
+		c.Phone, c.Organization, code, time.Now().Unix(), sign)
 
 	if err != nil {
-		return fmt.Errorf("psql - auth - UpdateSignUpCode - r.Pool.Exec: %w", err)
+		return fmt.Errorf("psql - auth - UpdateAuthCode - r.Pool.Exec: %w", err)
 	}
 
 	return nil
 }
 
-func (r *AuthRepo) DeleteSignUpCode(ctx context.Context, c entity.User) error {
+func (r *AuthRepo) DeleteAuthCode(ctx context.Context, c entity.User, sign int) error {
 	sqlStatement := `
-	DELETE FROM requestsignup
-	WHERE phone = $1 AND password = $2 AND organization = $3
+	DELETE FROM auth
+	WHERE typeofsign = $1 AND phone = $2 AND organization = $3
 	`
 
 	_, err := r.Pool.Exec(ctx,
 		sqlStatement,
-		c.Phone, c.Password, c.Organization)
+		sign, c.Phone, c.Organization)
 
 	if err != nil {
-		return fmt.Errorf("psql - auth - DeleteSignUpCode - r.Pool.Exec: %w", err)
+		return fmt.Errorf("psql - auth - DeleteAuthCode - r.Pool.Exec: %w", err)
 	}
 
 	return nil

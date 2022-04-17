@@ -17,7 +17,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, a *usecase.AuthUseCase) 
 	handler.StaticFile("/signIncode", "./signIncode.txt")
 	//******************************** DEBUG ************************************
 
-	h := handler.Group("/clients")
+	h := handler.Group("/users")
 	{
 		newAuthRoutes(h, l, *a)
 	}

@@ -32,7 +32,7 @@ type authRequest struct {
 	Organization string `json:"org" binding:"required"`
 	Phone        string `json:"phone" binding:"required,e164"`
 	Password     string `json:"password" binding:"omitempty,gte=8,lte=50"`
-	Code         int    `json:"code" binding:"omitempty,gte=100000,lte=999999"`
+	Code         int    `json:"code" binding:"omitempty,gte=1000,lte=9999"`
 	Name         string `json:"name" binding:"omitempty"`
 }
 

@@ -19,10 +19,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type ClientRepo interface {
-	Get()
-	Insert()
-}
+const (
+	SignUp int = 0
+	SignIn     = 1
+)
 
 type AuthUseCase struct {
 	authRepo    psql.AuthRepo
@@ -62,7 +62,7 @@ func (uc *AuthUseCase) SignUp(ctx context.Context, u entity.Auth) error {
 
 	switch u.Type {
 	case "request":
-		err = uc.RequestSignUp(ctx, u)
+		err = uc.RequestAuth(ctx, u, SignUp)
 	case "accept":
 		err = uc.AcceptSignUp(ctx, u)
 	default:
@@ -72,11 +72,38 @@ func (uc *AuthUseCase) SignUp(ctx context.Context, u entity.Auth) error {
 	return err
 }
 
-func (uc *AuthUseCase) RequestSignUp(ctx context.Context, u entity.Auth) error {
+func (uc *AuthUseCase) SignIn(ctx context.Context, u entity.Auth) (string, error) {
 
-	code := rand.Intn(899999) + 100000
+	var err error
+	var token string
+	var user entity.User
+
+	if user, err = uc.clientsRepo.GetUser(ctx, u.User); err == nil {
+		if user == (entity.User{}) {
+			return token, errors.Wrap(entity.ErrSingIn, "пользователь с таким номером телефона не зарегистрирован")
+		}
+	} else {
+		return token, fmt.Errorf("usecase - auth - SignIn: %w", err)
+	}
+
+	switch u.Type {
+	case "password":
+		token, err = uc.SignInByPassword(ctx, u, user)
+	case "request":
+		err = uc.RequestAuth(ctx, u, SignIn)
+	case "accept":
+		token, err = uc.AcceptSignInByCode(ctx, u, user)
+	default:
+		err = errors.New("unknown value of type field")
+	}
+
+	return token, err
+}
+
+func (uc *AuthUseCase) RequestAuth(ctx context.Context, u entity.Auth, sign int) error {
+
+	code := rand.Intn(8999) + 1000
 	//_, err := sms.Send(u.User.Phone, fmt.Sprint(code))
-	//
 
 	// if err != nil {
 	// 	return fmt.Errorf("usecase - auth - SignUp - RequestSignUp - Send: %w", err)
@@ -97,16 +124,16 @@ func (uc *AuthUseCase) RequestSignUp(ctx context.Context, u entity.Auth) error {
 	var storeCode int
 	var err error
 
-	if storeCode, _, err = uc.authRepo.GetSignUpCode(ctx, u.User); err == nil {
+	if storeCode, _, err = uc.authRepo.GetAuthCode(ctx, u.User, sign); err == nil {
 		if storeCode == 0 {
-			err = uc.authRepo.InsertSignUpCode(ctx, u.User, code)
+			err = uc.authRepo.InsertAuthCode(ctx, u.User, sign, code)
 		} else {
-			err = uc.authRepo.UpdateSignUpCode(ctx, u.User, code)
+			err = uc.authRepo.UpdateAuthCode(ctx, u.User, sign, code)
 		}
 	}
 
 	if err != nil {
-		return fmt.Errorf("usecase - auth - SignUp - RequestSignUp - GetSignUpCode: %w", err)
+		return fmt.Errorf("usecase - auth - RequestAuth - GetAuthCode: %w", err)
 	}
 
 	return nil
@@ -114,10 +141,10 @@ func (uc *AuthUseCase) RequestSignUp(ctx context.Context, u entity.Auth) error {
 
 func (uc *AuthUseCase) AcceptSignUp(ctx context.Context, u entity.Auth) error {
 
-	code, request_time, err := uc.authRepo.GetSignUpCode(ctx, u.User)
+	code, request_time, err := uc.authRepo.GetAuthCode(ctx, u.User, SignUp)
 
 	if err != nil {
-		return fmt.Errorf("usecase - auth - SignUp - AcceptSignUp: %w", err)
+		return fmt.Errorf("usecase - auth - AcceptSignUp - GetAuthCode: %w", err)
 	}
 
 	if code != u.Code {
@@ -131,7 +158,7 @@ func (uc *AuthUseCase) AcceptSignUp(ctx context.Context, u entity.Auth) error {
 	if u.User.Password != "" {
 		pwd, err := bcrypt.GenerateFromPassword([]byte(u.User.Password), 9)
 		if err != nil {
-			return fmt.Errorf("usecase - auth - SignUp - AcceptSignUp - bcrypt.GenerateFromPassword %w", err)
+			return fmt.Errorf("usecase - auth - AcceptSignUp - bcrypt.GenerateFromPassword %w", err)
 		}
 		u.User.Password = string(pwd)
 	}
@@ -143,35 +170,6 @@ func (uc *AuthUseCase) AcceptSignUp(ctx context.Context, u entity.Auth) error {
 	}
 
 	return nil
-}
-
-func (uc *AuthUseCase) SignIn(ctx context.Context, u entity.Auth) (string, error) {
-
-	var err error
-	var token string
-	var user entity.User
-
-	if user, err = uc.clientsRepo.GetUser(ctx, u.User); err == nil {
-		fmt.Println(user.Id)
-		if user == (entity.User{}) {
-			return token, errors.Wrap(entity.ErrSingIn, "пользователь с таким номером телефона не зарегистрирован")
-		}
-	} else {
-		return token, fmt.Errorf("usecase - auth - SignIn: %w", err)
-	}
-
-	switch u.Type {
-	case "password":
-		token, err = uc.SignInByPassword(ctx, u, user)
-	case "request":
-		token, err = uc.RequestSignInByCode(ctx, u)
-	case "accept":
-		token, err = uc.AcceptSignInByCode(ctx, u)
-	default:
-		err = errors.New("unknown value of type field")
-	}
-
-	return token, err
 }
 
 func (uc *AuthUseCase) SignInByPassword(ctx context.Context, u entity.Auth, user entity.User) (string, error) {
@@ -195,25 +193,29 @@ func (uc *AuthUseCase) SignInByPassword(ctx context.Context, u entity.Auth, user
 	return token.SignedString([]byte(config.GetConfig().JWT.Secret))
 }
 
-func (uc *AuthUseCase) RequestSignInByCode(ctx context.Context, u entity.Auth) (string, error) {
+func (uc *AuthUseCase) AcceptSignInByCode(ctx context.Context, u entity.Auth, user entity.User) (string, error) {
 
-	code := rand.Intn(899999) + 100000
+	code, request_time, err := uc.authRepo.GetAuthCode(ctx, u.User, SignIn)
 
-	//******************************** DEBUG ************************************
-	debugStr, _ := json.MarshalIndent(DebugInfo{Phone: u.User.Phone, Code: code}, " ", "")
-	//f, _ := os.OpenFile("./code.json", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
-
-	//defer f.Close()
-
-	if _, err := DebugFileSignUp.Write(debugStr); err != nil {
-		panic(err)
+	if err != nil {
+		return "", fmt.Errorf("usecase - auth - AcceptSignInByCode - GetAuthCode: %w", err)
 	}
-	//******************************** DEBUG ************************************
 
-	return "", nil
-}
+	if code != u.Code {
+		return "", errors.Wrap(entity.ErrSingIn, "неверный код подтверждения")
+	}
 
-func (uc *AuthUseCase) AcceptSignInByCode(ctx context.Context, u entity.Auth) (string, error) {
+	if request_time+3600 < time.Now().Unix() {
+		return "", errors.Wrap(entity.ErrSingIn, "время действия кода подтверждения вышло")
+	}
 
-	return "", nil
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, authjwt.Claims{
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: jwt.At(time.Now().Add(time.Second * time.Duration(config.GetConfig().JWT.Eat))),
+			IssuedAt:  jwt.At(time.Now()),
+		},
+		UserId: user.Id,
+	})
+
+	return token.SignedString([]byte(config.GetConfig().JWT.Secret))
 }
