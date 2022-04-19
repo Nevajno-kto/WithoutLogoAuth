@@ -34,6 +34,7 @@ func Run(cfg *config.Config) {
 	authUseCase := usecase.NewAuth(
 		psql.NewAuthRepo(pg),
 		psql.NewClientsRepo(pg),
+		psql.NewPemissionsRepo(pg),
 	)
 
 	// HTTP Server

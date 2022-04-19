@@ -30,6 +30,7 @@ func newAuthRoutes(h *gin.RouterGroup, l logger.Interface, a usecase.AuthUseCase
 type authRequest struct {
 	Type         string `json:"type" binding:"required"`
 	Organization string `json:"org" binding:"required"`
+	UserType     string `json:"userType" binding:"required,min=5,max=6"`
 	Phone        string `json:"phone" binding:"required,e164"`
 	Password     string `json:"password" binding:"omitempty,gte=8,lte=50"`
 	Code         int    `json:"code" binding:"omitempty,gte=1000,lte=9999"`
@@ -40,11 +41,11 @@ func (r *ClientsRoutes) SignUp(c *gin.Context) {
 	var request authRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		r.l.Error(err, "rest - SignUp - invalid request body")
-		errorResponse(c, http.StatusBadRequest, "Ошибка в теле запроса")
+		errorResponse(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	err := r.u.SignUp(
+	tokens, err := r.u.SignUp(
 		c.Request.Context(),
 		entity.Auth{
 			Type: request.Type,
@@ -53,22 +54,23 @@ func (r *ClientsRoutes) SignUp(c *gin.Context) {
 				Name:         request.Name,
 				Password:     request.Password,
 				Organization: request.Organization,
+				Type:         request.UserType,
 			},
 			Code: request.Code,
 		})
 
 	if err != nil {
-		if errors.Is(err, entity.ErrSignUp) {
-			errorResponse(c, http.StatusInternalServerError, err.Error())
+		if errors.Is(err, entity.ErrServiceProblem) {
+			r.l.Error(errors.Unwrap(err), "rest - SignUp - signup service problems")
+			errorResponse(c, http.StatusInternalServerError, "internal server error")
 			return
 		}
 
-		r.l.Error(err, "rest - SignUp - signup service problems")
-		errorResponse(c, http.StatusInternalServerError, "internal server error")
+		errorResponse(c, http.StatusOK, err.Error())
 		return
 	}
 
-	response(c, http.StatusOK, nil)
+	response(c, http.StatusOK, tokens)
 }
 
 func (r *ClientsRoutes) SignIn(c *gin.Context) {
@@ -79,7 +81,7 @@ func (r *ClientsRoutes) SignIn(c *gin.Context) {
 		return
 	}
 
-	token, err := r.u.SignIn(
+	tokens, err := r.u.SignIn(
 		c.Request.Context(),
 		entity.Auth{
 			Type: request.Type,
@@ -88,22 +90,24 @@ func (r *ClientsRoutes) SignIn(c *gin.Context) {
 				Name:         request.Name,
 				Password:     request.Password,
 				Organization: request.Organization,
+				Type:         request.UserType,
 			},
 			Code: request.Code,
 		})
 
 	if err != nil {
-		if errors.Is(err, entity.ErrSingIn) {
-			errorResponse(c, http.StatusInternalServerError, err.Error())
+
+		if errors.Is(err, entity.ErrServiceProblem) {
+			r.l.Error(err, "rest - SignIn - signup service problems")
+			errorResponse(c, http.StatusInternalServerError, "internal server error")
 			return
 		}
 
-		r.l.Error(err, "rest - SignIn - signup service problems")
-		errorResponse(c, http.StatusInternalServerError, "internal server error")
+		errorResponse(c, http.StatusOK, err.Error())
 		return
 	}
 
-	response(c, http.StatusOK, token)
+	response(c, http.StatusOK, tokens)
 
 }
 

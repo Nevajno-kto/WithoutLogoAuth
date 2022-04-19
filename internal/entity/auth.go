@@ -3,9 +3,8 @@ package entity
 import "errors"
 
 var (
-	ErrSignUp = errors.New("ошибка регистрации")
-	ErrSingIn = errors.New("ошибка авторизации")
 	ErrInvalidAccessToken = errors.New("invalid access token")
+	ErrServiceProblem = errors.New("internal server error")
 )
 
 type Auth struct {

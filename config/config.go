@@ -43,8 +43,9 @@ type (
 
 	// JWT -.
 	JWT struct {
-		Secret string `yaml:"jwt_secret" env:"JWT_SECRET"`
-		Eat    int    `yaml:"eat" env:"EAT"`
+		Secret     string `yaml:"jwt_secret" env:"JWT_SECRET"`
+		EatAuth    int    `yaml:"eatAuth" env:"EAT_AUTH"`
+		EatRefresh int    `yaml:"eatRefresh" env:"EAT_REFRESH"`
 	}
 )
 

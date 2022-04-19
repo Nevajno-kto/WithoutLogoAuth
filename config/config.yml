@@ -13,4 +13,5 @@ postgres:
   pool_max: 2
 
 jwt:
-  eat: 604800
+  eatAuth: 86400
+  eatRefresh: 604800
