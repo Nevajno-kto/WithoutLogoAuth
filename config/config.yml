@@ -2,8 +2,8 @@ app:
   name: 'without-logo'
   version: '1.0.0'
 
-# http:
-#   port: '8081'
+http:
+  port: '8081'
 
 logger:
   log_level: 'debug'

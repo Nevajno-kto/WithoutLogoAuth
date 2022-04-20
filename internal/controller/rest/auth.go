@@ -28,16 +28,16 @@ func newAuthRoutes(h *gin.RouterGroup, l logger.Interface, a usecase.AuthUseCase
 }
 
 type authRequest struct {
-	Type         string `json:"type" binding:"required"`
+	Action       string `json:"action" binding:"required"`
 	Organization string `json:"org" binding:"required"`
-	UserType     string `json:"userType" binding:"required,min=5,max=6"`
 	Phone        string `json:"phone" binding:"required,e164"`
+	UserType     string `json:"userType" binding:"omitempty,min=5,max=6"`
 	Password     string `json:"password" binding:"omitempty,gte=8,lte=50"`
 	Code         int    `json:"code" binding:"omitempty,gte=1000,lte=9999"`
-	Name         string `json:"name" binding:"omitempty"`
 }
 
 func (r *ClientsRoutes) SignUp(c *gin.Context) {
+	var action, userType int
 	var request authRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		r.l.Error(err, "rest - SignUp - invalid request body")
@@ -45,16 +45,35 @@ func (r *ClientsRoutes) SignUp(c *gin.Context) {
 		return
 	}
 
-	tokens, err := r.u.SignUp(
+	switch request.Action {
+	case "request":
+		action = entity.SignUpRequest
+	case "confirm":
+		action = entity.SignUpConfirm
+	default:
+		errorResponse(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	switch request.UserType {
+	case "client":
+		userType = entity.Client
+	case "admin":
+		userType = entity.Admin
+	default:
+		errorResponse(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	authResult, err := r.u.SignUp(
 		c.Request.Context(),
 		entity.Auth{
-			Type: request.Type,
+			Action: action,
 			User: entity.User{
 				Phone:        request.Phone,
-				Name:         request.Name,
 				Password:     request.Password,
 				Organization: request.Organization,
-				Type:         request.UserType,
+				Type:         userType,
 			},
 			Code: request.Code,
 		})
@@ -66,14 +85,20 @@ func (r *ClientsRoutes) SignUp(c *gin.Context) {
 			return
 		}
 
+		if errors.Is(err, entity.ErrTimeout) {
+			timeoutResponse(c, http.StatusOK, authResult)
+			return
+		}
+
 		errorResponse(c, http.StatusOK, err.Error())
 		return
 	}
 
-	response(c, http.StatusOK, tokens)
+	response(c, http.StatusOK, authResult)
 }
 
 func (r *ClientsRoutes) SignIn(c *gin.Context) {
+	var action int
 	var request authRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		r.l.Error(err, "rest - SignIn - invalid request body")
@@ -81,16 +106,36 @@ func (r *ClientsRoutes) SignIn(c *gin.Context) {
 		return
 	}
 
-	tokens, err := r.u.SignIn(
+	switch request.Action {
+	case "password":
+		action = entity.SignInByPassword
+	case "request":
+		action = entity.SignInRequest
+	case "confirm":
+		action = entity.SignInConfirm
+	default:
+		errorResponse(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// switch request.UserType {
+	// case "client":
+	// 	userType = entity.Client
+	// case "admin":
+	// 	userType = entity.Admin
+	// default:
+	// 	errorResponse(c, http.StatusBadRequest, "invalid request body")
+	// 	return
+	// }
+
+	authResult, err := r.u.SignIn(
 		c.Request.Context(),
 		entity.Auth{
-			Type: request.Type,
+			Action: action,
 			User: entity.User{
 				Phone:        request.Phone,
-				Name:         request.Name,
 				Password:     request.Password,
 				Organization: request.Organization,
-				Type:         request.UserType,
 			},
 			Code: request.Code,
 		})
@@ -103,11 +148,16 @@ func (r *ClientsRoutes) SignIn(c *gin.Context) {
 			return
 		}
 
+		if errors.Is(err, entity.ErrTimeout) {
+			timeoutResponse(c, http.StatusOK, authResult)
+			return
+		}
+
 		errorResponse(c, http.StatusOK, err.Error())
 		return
 	}
 
-	response(c, http.StatusOK, tokens)
+	response(c, http.StatusOK, authResult)
 
 }
 
